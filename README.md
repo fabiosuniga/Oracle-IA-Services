@@ -7,9 +7,8 @@
 
 ## Sobre o Projeto
 
-Este projeto é uma aplicação *full-stack* projetada para substituir buscas tradicionais baseadas em palavras-chave (`LIKE '%termo%'`) por um **Motor de Busca Semântica**. Em vez de buscar por textos exatos, o sistema entende a **intenção** do usuário utilizando Inteligência Artificial Generativa e *Embeddings* nativos em banco de dados.
-
-Se um usuário pesquisar por *"preciso de ajuda, o servidor caiu"*, o sistema não procura a palavra "servidor", mas sim compreende o contexto e retorna os funcionários do departamento de Tecnologia da Informação (IT).
+Este projeto é uma aplicação *full-stack* para demonstrar algumas ferramentas Oracle e seu uso na prática. IA generativa configurada apenas para nos tirar dúvidas de assuntos envolvendo PL/SQL e SQL Oracle.
+OCI Vision que foi configurado para extrair textos de imagens, e o Vector Search que foi configurado para realizar buscas semânticas e nos retornar com os funcionários mais adeptos para a tarefa desejada.
 
 📹 **[Clique aqui para ver o vídeo da aplicação funcionando no YouTube]** 
 ---
@@ -22,24 +21,6 @@ A aplicação foi separada em camadas claras de responsabilidade:
 *   **Backend / Controller (PL/SQL):** Responsável por orquestrar regras de negócio, chamadas RESTful, tratamento de erros e processamento de JSON/CLOBs.
 *   **Banco de Dados (Oracle 23ai):** Armazenamento nativo dos vetores multidimensionais gerados pela IA e cálculo de distância utilizando funções vetoriais.
 *   **Inteligência Artificial (Cohere API):** Utilização do modelo `embed-multilingual-v3.0` para converter a linguagem humana e os perfis corporativos em matemática pura (*Embeddings* de 1024 dimensões).
-
----
-
-## Principais Desafios e Soluções (Engenharia de Software)
-
-Desenvolver com IA exige mais do que apenas consumir chamadas HTTP. Durante o desenvolvimento deste motor, enfrentei e solucionei desafios reais de arquitetura:
-
-### 1. Ambiguidade Semântica e Engenharia de Prompt (Data Enrichment)
-Modelos multilíngues podem sofrer com diluição de contexto. Uma busca por "contratações" inicialmente retornava o departamento de Compras (*Purchasing*) em vez de Recursos Humanos (*HR*).
-**Solução:** Implementei um processo de **Enriquecimento de Dados** no backend, gerando descrições ricas e focadas em ações em português para cada departamento antes de convertê-las em vetores, eliminando pontes falsas de idioma.
-
-### 2. Tratamento de Rate Limits (Bloqueios de API)
-Ao popular o banco de dados em lote, a API da nuvem bloqueava requisições simultâneas massivas (Erro HTTP 429 - *Too Many Requests*).
-**Solução:** Refatorei o script de atualização vetorial criando um *loop* transacional com tratamento de exceções robusto e pausas lógicas programadas (`DBMS_SESSION.SLEEP`), garantindo que 100% da base fosse processada sem falhas silenciosas.
-
-### 3. Calibragem de Similaridade (Threshold)
-Retornar os "Top 5" registros nem sempre é o ideal se a IA tiver que "chutar" muito longe para preencher a lista.
-**Solução:** Implementação de uma nota de corte utilizando matemática vetorial (`VECTOR_DISTANCE(..., COSINE) <= 0.55`). O sistema atua como um leão de chácara: se a distância semântica for muito alta, a busca é barrada antes de chegar na camada de visualização.
 
 ---
 
