@@ -12,8 +12,6 @@ Este projeto é uma aplicação *full-stack* projetada para substituir buscas tr
 Se um usuário pesquisar por *"preciso de ajuda, o servidor caiu"*, o sistema não procura a palavra "servidor", mas sim compreende o contexto e retorna os funcionários do departamento de Tecnologia da Informação (IT).
 
 📹 **[Clique aqui para ver o vídeo da aplicação funcionando no YouTube]** 
-*(Nota: Grave um vídeo curto mostrando a tela e coloque o link aqui)*
-
 ---
 
 ## Arquitetura e Tecnologias
@@ -49,15 +47,7 @@ Retornar os "Top 5" registros nem sempre é o ideal se a IA tiver que "chutar" m
 
 Neste repositório, destaquei o código fonte do backend que sustenta a inteligência da aplicação:
 
-*   `cohere_api_integration.sql`: Scripts PL/SQL de integração com a API da Cohere, geração dinâmica de JSON payload e armazenamento do tipo *Vector* no banco.
-*   `vector_search_algorithm.sql`: A lógica principal do motor de busca, mostrando o cruzamento vetorial em tempo real e o filtro lógico usando *Cosine Distance*.
-*   `data_enrichment_rules.sql`: Regras de negócio em T-SQL/PL/SQL utilizadas para enriquecer a base de dados corporativa antes de enviá-la para a IA.
+*   `chamar-OCI-VISION`: Script em PL/SQL que chama o serviço de Visão da Oracle diretamente em nossa aplicação APEX.
+*   `chamar-ia-generativa`: Script em PL/SQL que envia a pergunta do usuário para a Oracle, e a Oracle retorna uma resposta do modelo Cohere previamente configurado.
+*   `treinamento-VETOR-SEARCH`: Regras de negócio em T-SQL/PL/SQL utilizadas para enriquecer a base de dados corporativa antes de enviá-la para a IA.
 
----
-
-## 🤝 Contato e Redes
-
-Sinta-se à vontade para explorar o código, clonar o repositório e dar ideias de melhoria!
-
-*   **LinkedIn:** [Seu Nome ou Link do LinkedIn]
-*   **E-mail:** [Seu e-mail profissional]
