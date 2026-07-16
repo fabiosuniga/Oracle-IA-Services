@@ -1,0 +1,66 @@
+DECLARE
+    l_payload      CLOB;
+    l_response     CLOB;
+    l_vetor_string CLOB;
+    l_texto_perfil VARCHAR2(4000);
+    l_atividades   VARCHAR2(1000);
+    l_compartment  VARCHAR2(32767) := 'ocid1.tenancy.oc1..aaaaaaaa5mevn75qs3gj3zv57bflyilvw3gnxb6oucvbsr3v7hfdaxftrppa';
+    l_url          VARCHAR2(4000)  := 'https://inference.generativeai.sa-saopaulo-1.oci.oraclecloud.com/20231130/actions/embedText';
+BEGIN
+    apex_web_service.g_request_headers(1).name := 'Content-Type';
+    apex_web_service.g_request_headers(1).value := 'application/json';
+
+
+    FOR r IN (SELECT employee_id, full_name, job_title, department_name FROM emp_ai WHERE employee_id != 203) LOOP
+        
+ 
+        l_atividades := CASE r.department_name
+            WHEN 'Finance' THEN 'O foco absoluto desta pessoa é o setor financeiro, contabilidade, fluxo de caixa, pagamentos, fechar as contas e corte de gastos.'
+            WHEN 'Sales' THEN 'O foco absoluto desta pessoa é realizar vendas, negociar com clientes, bater metas de lucro e expandir o mercado.'
+            WHEN 'Marketing' THEN 'O foco absoluto desta pessoa é criar campanhas de marketing, publicidade, redes sociais, gerenciar a imagem da marca e planejar eventos.'
+            WHEN 'IT' THEN 'O foco absoluto desta pessoa é a tecnologia da informação, dar suporte técnico, consertar computadores, arrumar servidores, programação e sistemas.'
+            WHEN 'Purchasing' THEN 'O foco absoluto desta pessoa é o setor de compras, adquirir novos equipamentos, comprar suprimentos e negociar com fornecedores.'
+            ELSE 'O foco absoluto desta pessoa são tarefas administrativas e operações gerais da empresa.'
+        END;
+
+        l_texto_perfil := 'Esta pessoa trabalha no departamento de ' || r.department_name || '. ' || l_atividades;
+
+        apex_json.initialize_clob_output;
+        apex_json.open_object;
+          apex_json.write('compartmentId', l_compartment);
+          apex_json.open_object('servingMode');
+            apex_json.write('servingType', 'ON_DEMAND');
+            apex_json.write('modelId', 'cohere.embed-multilingual-v3.0'); 
+          apex_json.close_object;
+          apex_json.open_array('inputs');
+            apex_json.write(l_texto_perfil);
+          apex_json.close_array;
+        apex_json.close_object;
+        
+        l_payload := apex_json.get_clob_output;
+        apex_json.free_output;
+
+        l_response := apex_web_service.make_rest_request(
+            p_url                  => l_url,
+            p_http_method          => 'POST',
+            p_body                 => l_payload,
+            p_credential_static_id => 'tez-teste'
+        );
+
+        IF apex_web_service.g_status_code = 200 THEN
+            SELECT JSON_QUERY(l_response, '$.embeddings[0]' RETURNING CLOB) 
+              INTO l_vetor_string 
+              FROM DUAL;
+              
+            UPDATE emp_ai
+               SET perfil_vetor = TO_VECTOR(l_vetor_string)
+             WHERE employee_id = r.employee_id;
+             
+            COMMIT;
+        END IF;
+
+
+        DBMS_SESSION.SLEEP(1);
+        
+    END LOOP;
+END;
