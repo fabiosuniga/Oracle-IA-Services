@@ -1,0 +1,96 @@
+DECLARE
+    l_blob           BLOB;
+    l_base64         CLOB;
+    l_payload        CLOB;
+    l_response       CLOB;
+    l_texto_completo CLOB := '';
+    l_line_count     NUMBER;
+    l_status_code    NUMBER;
+    
+
+    l_compartment    VARCHAR2(32767) := 'ocid1.tenancy.oc1..aaaaaaaa5mevn75qs3gj3zv57bflyilvw3gnxb6oucvbsr3v7hfdaxftrppa'; 
+    
+
+    l_url            VARCHAR2(4000)  := 'https://vision.aiservice.sa-saopaulo-1.oci.oraclecloud.com/20220125/actions/analyzeImage';
+BEGIN
+    :P2_TEXTO_EXTRAIDO := '';
+
+    BEGIN
+        SELECT blob_content
+          INTO l_blob
+          FROM apex_application_temp_files
+         WHERE name = :P2_IMAGEM;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            :P2_TEXTO_EXTRAIDO := 'ERRO: Nenhuma imagem encontrada.';
+            RETURN;
+    END;
+
+    IF DBMS_LOB.GETLENGTH(l_blob) IS NULL OR DBMS_LOB.GETLENGTH(l_blob) = 0 THEN
+        :P2_TEXTO_EXTRAIDO := 'ERRO: O arquivo de imagem está vazio.';
+        RETURN;
+    END IF;
+
+    l_base64 := apex_web_service.blob2clobbase64(l_blob);
+    l_base64 := REPLACE(REPLACE(REPLACE(l_base64, CHR(13)||CHR(10), ''), CHR(10), ''), CHR(13), '');
+
+
+    apex_json.initialize_clob_output;
+    apex_json.open_object;
+      apex_json.write('compartmentId', l_compartment);
+      apex_json.open_array('features');
+        apex_json.open_object;
+          apex_json.write('featureType', 'TEXT_DETECTION');
+        apex_json.close_object;
+      apex_json.close_array;
+      
+
+      apex_json.open_object('image');
+        apex_json.write('source', 'INLINE');
+        apex_json.write('data', l_base64);
+      apex_json.close_object;
+    apex_json.close_object;
+    l_payload := apex_json.get_clob_output;
+    apex_json.free_output;
+
+    apex_web_service.g_request_headers(1).name := 'Content-Type';
+    apex_web_service.g_request_headers(1).value := 'application/json';
+
+
+    l_response := apex_web_service.make_rest_request(
+        p_url                  => l_url,
+        p_http_method          => 'POST',
+        p_body                 => l_payload,
+        p_credential_static_id => 'tez-teste' 
+    );
+    
+    l_status_code := apex_web_service.g_status_code;
+
+    IF l_response IS NULL THEN
+        :P2_TEXTO_EXTRAIDO := 'ERRO DE REDE: Status HTTP: ' || l_status_code;
+        RETURN;
+    END IF;
+
+    apex_json.parse(l_response);
+    
+    IF apex_json.get_varchar2('code') IS NOT NULL THEN
+        :P2_TEXTO_EXTRAIDO := 'ERRO DA API: ' || apex_json.get_varchar2('code') || ' - ' || apex_json.get_varchar2('message');
+    ELSE
+
+        l_line_count := NVL(apex_json.get_count(p_path => 'imageText.lines'), 0);
+        
+        IF l_line_count = 0 THEN
+             :P2_TEXTO_EXTRAIDO := 'Nenhum texto foi encontrado nesta imagem.';
+        ELSE
+            FOR i IN 1 .. l_line_count LOOP
+                l_texto_completo := l_texto_completo || apex_json.get_varchar2(p_path => 'imageText.lines[%d].text', p0 => i) || CHR(10);
+            END LOOP;
+            
+            :P2_TEXTO_EXTRAIDO := l_texto_completo;
+        END IF;
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        :P2_TEXTO_EXTRAIDO := 'FALHA INTERNA: ' || SQLERRM;
+END;
