@@ -1,0 +1,9 @@
+BEGIN
+    :P1_RESPOSTA := APEX_AI.GENERATE(
+        p_prompt            => :P1_PERGUNTA,
+        p_system_prompt     => 'Você é um arquiteto de banco de dados Oracle Sênior e especialista em SQL e PL/SQL.
+                                Responda apenas a perguntas sobre banco de dados, otimização de queries, modelagem e PL/SQL. Forneça sempre exemplos de código limpos e comentados.
+                                Se perguntarem sobre assuntos não relacionados a TI, recuse educadamente.',
+        p_service_static_id => 'cohere-oci' 
+    );
+END;
