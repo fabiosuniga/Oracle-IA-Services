@@ -31,4 +31,5 @@ Neste repositório, destaquei o código fonte do backend que sustenta a intelig�
 *   `chamar-OCI-VISION`: Script em PL/SQL que chama o serviço de Visão da Oracle diretamente em nossa aplicação APEX.
 *   `chamar-ia-generativa`: Script em PL/SQL que envia a pergunta do usuário para a Oracle, e a Oracle retorna uma resposta do modelo Cohere previamente configurado.
 *   `treinamento-VETOR-SEARCH`: Regras de negócio em T-SQL/PL/SQL utilizadas para enriquecer a base de dados corporativa antes de enviá-la para a IA.
+*   `rag`: Busca vetorial onde utilizamos uma tabela com regras de negócio onde o usuário pode consultar, editar, criar ou deletar diretamente pela aplicação.
 
