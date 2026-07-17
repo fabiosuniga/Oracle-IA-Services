@@ -14,11 +14,11 @@ DECLARE
     
     l_prompt        CLOB;
 BEGIN
-    -- 1. NOVA TRAVA DE SEGURANÇA: Impede busca fantasma
+
     IF l_pergunta IS NULL OR TRIM(l_pergunta) IS NULL THEN
         :P6_RESPOSTA := 'ERRO TÉCNICO: O APEX não enviou a sua pergunta para o servidor. Por favor, coloque P6_PERGUNTA no campo "Items to Submit" da ação do botão.';
         :P6_FONTE := 'Sessão Vazia';
-        RETURN; -- Encerra o processo imediatamente para poupar a API
+        RETURN;
     END IF;
 
     apex_web_service.g_request_headers(1).name := 'Content-Type';
