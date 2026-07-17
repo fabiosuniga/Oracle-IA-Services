@@ -1,0 +1,79 @@
+DECLARE
+    l_pergunta      VARCHAR2(1000) := :P6_PERGUNTA; 
+    l_compartment   VARCHAR2(32767) := 'ocid1.tenancy.oc1..aaaaaaaa5mevn75qs3gj3zv57bflyilvw3gnxb6oucvbsr3v7hfdaxftrppa';
+    
+    l_url_embed     VARCHAR2(4000) := 'https://inference.generativeai.sa-saopaulo-1.oci.oraclecloud.com/20231130/actions/embedText';
+    l_payload_embed CLOB;
+    l_resp_embed    CLOB;
+    l_vetor_string  CLOB;
+    l_vetor_busca   VECTOR;
+    
+    l_contexto      CLOB;
+    l_titulo        VARCHAR2(200);
+    l_distancia     NUMBER;
+    
+    l_prompt        CLOB;
+BEGIN
+    -- 1. NOVA TRAVA DE SEGURANÇA: Impede busca fantasma
+    IF l_pergunta IS NULL OR TRIM(l_pergunta) IS NULL THEN
+        :P6_RESPOSTA := 'ERRO TÉCNICO: O APEX não enviou a sua pergunta para o servidor. Por favor, coloque P6_PERGUNTA no campo "Items to Submit" da ação do botão.';
+        :P6_FONTE := 'Sessão Vazia';
+        RETURN; -- Encerra o processo imediatamente para poupar a API
+    END IF;
+
+    apex_web_service.g_request_headers(1).name := 'Content-Type';
+    apex_web_service.g_request_headers(1).value := 'application/json';
+
+    apex_json.initialize_clob_output;
+    apex_json.open_object;
+      apex_json.write('compartmentId', l_compartment);
+      apex_json.open_object('servingMode');
+        apex_json.write('servingType', 'ON_DEMAND');
+        apex_json.write('modelId', 'cohere.embed-multilingual-v3.0'); 
+      apex_json.close_object;
+      apex_json.open_array('inputs');
+        -- 2. Passa a variável limpa e garantida
+        apex_json.write(l_pergunta);
+      apex_json.close_array;
+    apex_json.close_object;
+    
+    l_payload_embed := apex_json.get_clob_output;
+    apex_json.free_output;
+
+    l_resp_embed := apex_web_service.make_rest_request(
+        p_url                  => l_url_embed,
+        p_http_method          => 'POST',
+        p_body                 => l_payload_embed,
+        p_credential_static_id => 'tez-teste'
+    );
+
+    SELECT JSON_QUERY(l_resp_embed, '$.embeddings[0]' RETURNING CLOB) 
+      INTO l_vetor_string 
+      FROM DUAL;
+    
+    l_vetor_busca := TO_VECTOR(l_vetor_string);
+
+    SELECT titulo_sessao, 
+           conteudo_texto,
+           VECTOR_DISTANCE(vetor_documento, l_vetor_busca, COSINE)
+      INTO l_titulo, l_contexto, l_distancia
+      FROM manuais_corporativos
+     ORDER BY VECTOR_DISTANCE(vetor_documento, l_vetor_busca, COSINE) ASC
+     FETCH FIRST 1 ROWS ONLY;
+
+    :P6_FONTE := l_titulo || ' (Similaridade: ' || ROUND((1 - l_distancia) * 100, 1) || '%)';
+
+    l_prompt := 'Você é um assistente corporativo direto e educado. ' ||
+                'Responda à pergunta do usuário utilizando APENAS o manual fornecido abaixo. ' ||
+                'Se a resposta não estiver no manual, responda estritamente: "Desculpe, não encontrei essa informação." ' || CHR(10) || CHR(10) ||
+                '--- MANUAL ---' || CHR(10) || 
+                l_contexto || CHR(10) || 
+                '---' || CHR(10) ||
+                'Pergunta: ' || l_pergunta;
+
+    :P6_RESPOSTA := apex_ai.generate(
+        p_prompt            => l_prompt,
+        p_service_static_id => 'cohere-oci'
+    );
+
+END;
